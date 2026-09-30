@@ -6,7 +6,7 @@ namespace OnlineStore.Domain.Entities;
 public sealed class Product : Entity
 {
     public string Name { get; }
-    public decimal Price { get; }
+    public decimal Price { get; private set; }
 
     public Product(string name, decimal price)
     {
@@ -15,12 +15,24 @@ public sealed class Product : Entity
             throw new DomainException("Product name cannot be empty.");
         }
 
+        EnsurePriceIsPositive(price);
+
+        Name = name;
+        Price = price;
+    }
+
+    public void ChangePrice(decimal newPrice)
+    {
+        EnsurePriceIsPositive(newPrice);
+
+        Price = newPrice;
+    }
+
+    private static void EnsurePriceIsPositive(decimal price)
+    {
         if (price <= 0)
         {
             throw new DomainException("Product price must be greater than zero.");
         }
-
-        Name = name;
-        Price = price;
     }
 }

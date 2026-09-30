@@ -50,6 +50,12 @@ paymentMethod = new BankTransferPayment(Iban);
 paymentService.Pay(transferOrder, paymentMethod);
 PrintOrder(transferOrder);
 
+laptop.ChangePrice(42000m);
+var paidLaptop = cardOrder.Items.First(item => item.Product == laptop);
+
+Console.WriteLine();
+Console.WriteLine($"Laptop price changed to {laptop.Price:0.00} UAH, paid order keeps {paidLaptop.UnitPrice:0.00} UAH");
+
 var cancelledOrder = new Order(customer);
 cancelledOrder.AddItem(mouse, 1);
 cancelledOrder.Cancel();
@@ -60,6 +66,7 @@ TryRun("Pay the order twice", () => paymentService.Pay(cardOrder, new CardPaymen
 TryRun("Pay a cancelled order", () => paymentService.Pay(cancelledOrder, new BankTransferPayment(Iban)));
 TryRun("Add item to a paid order", () => cardOrder.AddItem(headphones, 1));
 TryRun("Create product with price 0", () => new Product("Gift card", 0m));
+TryRun("Change product price to negative", () => laptop.ChangePrice(-1m));
 TryRun("Add item with quantity 0", () => new Order(customer).AddItem(mouse, 0));
 TryRun("Change quantity in a paid order", () => cardOrder.ChangeItemQuantity(mouse.Id, 5));
 TryRun("Use invalid card number", () => new CardPayment("4111111111111112"));
