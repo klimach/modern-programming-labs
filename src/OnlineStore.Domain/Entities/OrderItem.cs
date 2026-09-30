@@ -26,6 +26,13 @@ public sealed class OrderItem
         Quantity += quantity;
     }
 
+    internal void ChangeQuantity(int quantity)
+    {
+        EnsureQuantityIsPositive(quantity);
+
+        Quantity = quantity;
+    }
+
     private static void EnsureQuantityIsPositive(int quantity)
     {
         if (quantity <= 0)

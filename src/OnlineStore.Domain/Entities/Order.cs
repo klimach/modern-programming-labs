@@ -42,10 +42,14 @@ public sealed class Order : Entity
     {
         EnsureCanBeModified();
 
-        var item = _items.FirstOrDefault(item => item.Product.Id == productId)
-            ?? throw new DomainException("Product is not in the order.");
+        _items.Remove(GetItem(productId));
+    }
 
-        _items.Remove(item);
+    public void ChangeItemQuantity(Guid productId, int quantity)
+    {
+        EnsureCanBeModified();
+
+        GetItem(productId).ChangeQuantity(quantity);
     }
 
     public void EnsureCanBePaid()
@@ -94,6 +98,10 @@ public sealed class Order : Entity
 
         Status = OrderStatus.Cancelled;
     }
+
+    private OrderItem GetItem(Guid productId) =>
+        _items.FirstOrDefault(item => item.Product.Id == productId)
+            ?? throw new DomainException("Product is not in the order.");
 
     private void EnsureCanBeModified()
     {

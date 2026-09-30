@@ -38,6 +38,7 @@ cardOrder.AddItem(mouse, 1);
 
 var transferOrder = new Order(customer);
 transferOrder.AddItem(headphones, 1);
+transferOrder.ChangeItemQuantity(headphones.Id, 2);
 transferOrder.AddItem(mouse, 1);
 transferOrder.RemoveItem(mouse.Id);
 
@@ -60,6 +61,7 @@ TryRun("Pay a cancelled order", () => paymentService.Pay(cancelledOrder, new Ban
 TryRun("Add item to a paid order", () => cardOrder.AddItem(headphones, 1));
 TryRun("Create product with price 0", () => new Product("Gift card", 0m));
 TryRun("Add item with quantity 0", () => new Order(customer).AddItem(mouse, 0));
+TryRun("Change quantity in a paid order", () => cardOrder.ChangeItemQuantity(mouse.Id, 5));
 TryRun("Use invalid card number", () => new CardPayment("4111111111111112"));
 
 static void PrintOrder(Order order)
