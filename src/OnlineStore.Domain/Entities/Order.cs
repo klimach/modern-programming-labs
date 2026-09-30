@@ -1,14 +1,14 @@
+using OnlineStore.Domain.Common;
 using OnlineStore.Domain.Enums;
 using OnlineStore.Domain.Exceptions;
 using OnlineStore.Domain.ValueObjects;
 
 namespace OnlineStore.Domain.Entities;
 
-public sealed class Order
+public sealed class Order : Entity
 {
     private readonly List<OrderItem> _items = [];
 
-    public Guid Id { get; } = Guid.CreateVersion7();
     public Customer Customer { get; }
     public OrderStatus Status { get; private set; } = OrderStatus.Created;
     public PaymentReceipt? Payment { get; private set; }
@@ -27,7 +27,7 @@ public sealed class Order
         ArgumentNullException.ThrowIfNull(product);
         EnsureCanBeModified();
 
-        var existingItem = _items.FirstOrDefault(item => item.Product.Id == product.Id);
+        var existingItem = _items.FirstOrDefault(item => item.Product == product);
 
         if (existingItem is not null)
         {

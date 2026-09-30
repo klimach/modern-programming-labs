@@ -1,11 +1,11 @@
 using System.Net.Mail;
+using OnlineStore.Domain.Common;
 using OnlineStore.Domain.Exceptions;
 
 namespace OnlineStore.Domain.Entities;
 
-public sealed class Customer
+public sealed class Customer : Entity
 {
-    public Guid Id { get; } = Guid.CreateVersion7();
     public string FullName { get; }
     public string Email { get; }
 

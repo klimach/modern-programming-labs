@@ -1,10 +1,10 @@
+using OnlineStore.Domain.Common;
 using OnlineStore.Domain.Exceptions;
 
 namespace OnlineStore.Domain.Entities;
 
-public sealed class Product
+public sealed class Product : Entity
 {
-    public Guid Id { get; } = Guid.CreateVersion7();
     public string Name { get; }
     public decimal Price { get; }
 
