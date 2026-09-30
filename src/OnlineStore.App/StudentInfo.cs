@@ -1,4 +1,4 @@
-namespace OnlineStore.Domain;
+namespace OnlineStore.App;
 
 public static class StudentInfo
 {
