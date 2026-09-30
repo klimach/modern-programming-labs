@@ -15,8 +15,10 @@
 ```
 modern-programming-labs/
 ├── src/
-│   ├── OnlineStore.App/      # Console Application
-│   └── OnlineStore.Domain/   # Class Library з моделлю предметної області
+│   ├── OnlineStore.Domain/           # Сутності, правила та доменні винятки; не залежить від інших проєктів
+│   ├── OnlineStore.Application/      # Сценарії використання та абстракції (IPaymentMethod) → Domain
+│   ├── OnlineStore.Infrastructure/   # Реалізації абстракцій (CardPayment, BankTransferPayment) → Application
+│   └── OnlineStore.App/              # Console Application, composition root → усі проєкти
 ├── README.md
 ├── .gitignore
 └── ModernProgramming.slnx
