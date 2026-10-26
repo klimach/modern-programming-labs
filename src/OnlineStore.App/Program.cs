@@ -5,6 +5,7 @@ using OnlineStore.Application.Orders;
 using OnlineStore.Application.Payments;
 using OnlineStore.Domain.Entities;
 using OnlineStore.Domain.Exceptions;
+using OnlineStore.Domain.ValueObjects;
 using OnlineStore.Infrastructure.Payments;
 
 const string CardNumber = "4111111111111111";
@@ -25,7 +26,18 @@ Console.Write(output);
 
 var paymentService = new OrderPaymentService();
 
-var customer = new Customer { Name = "Oleksandr Klimach", Email = "oleksandr@example.com" };
+var customer = new Customer
+{
+    Name = "Oleksandr Klimach",
+    Email = "oleksandr@example.com",
+    Address = new Address("Poltava", "Shevchenka", "12", "36000"),
+    PhoneNumber = "+380501234567"
+};
+
+var guest = new Customer { Name = "Guest Customer", Email = "guest@example.com" };
+
+PrintCustomer(customer);
+PrintCustomer(guest);
 
 var laptop = new Product("Laptop", 45000m);
 var mouse = new Product("Mouse", 800m);
@@ -48,7 +60,14 @@ PrintOrder(cardOrder);
 
 paymentMethod = new BankTransferPayment(Iban);
 paymentService.Pay(transferOrder, paymentMethod);
+transferOrder.Ship();
+transferOrder.Deliver();
 PrintOrder(transferOrder);
+
+var smallOrder = new Order(guest);
+smallOrder.AddItem(mouse, 1);
+paymentService.Pay(smallOrder, new CardPayment(CardNumber));
+PrintOrder(smallOrder);
 
 laptop.ChangePrice(42000m);
 var paidLaptop = cardOrder.Items.First(item => item.Product == laptop);
@@ -70,18 +89,32 @@ TryRun("Change product price to negative", () => laptop.ChangePrice(-1m));
 TryRun("Add item with quantity 0", () => new Order(customer).AddItem(mouse, 0));
 TryRun("Change quantity in a paid order", () => cardOrder.ChangeItemQuantity(mouse.Id, 5));
 TryRun("Use invalid card number", () => new CardPayment("4111111111111112"));
+TryRun("Ship order without delivery address", smallOrder.Ship);
+TryRun("Deliver order that is not shipped", smallOrder.Deliver);
+TryRun("Cancel delivered order", transferOrder.Cancel);
+TryRun("Create address with invalid postal code", () => new Address("Poltava", "Shevchenka", "12", "3600"));
+TryRun("Create customer with invalid phone", () => new Customer { Name = "Test", Email = "test@example.com", PhoneNumber = "0501234567" });
+
+static void PrintCustomer(Customer customer)
+{
+    Console.WriteLine();
+    Console.WriteLine($"Customer: {customer.Name} <{customer.Email}>");
+    Console.WriteLine($"  Phone: {customer.PhoneNumber ?? "not specified"}");
+    Console.WriteLine($"  Address: {customer.Address?.ToString() ?? "not specified"}");
+}
 
 static void PrintOrder(Order order)
 {
     Console.WriteLine();
-    Console.WriteLine($"Order for {order.Customer.Name}: {order.Status}");
+    Console.WriteLine($"Order for {order.Customer.Name}: {order.Status} - {order.GetStatusDescription()}");
 
     foreach (var item in order.Items)
     {
         Console.WriteLine($"  {item.Product.Name} x{item.Quantity} = {item.Total:0.00} UAH");
     }
 
-    Console.WriteLine($"  Total: {order.TotalAmount:0.00} UAH");
+    Console.WriteLine($"  Total: {order.TotalAmount:0.00} UAH ({order.GetOrderCategory()})");
+    Console.WriteLine($"  Free delivery: {(order.HasFreeDelivery ? "yes" : "no")}");
     Console.WriteLine($"  Paid with: {order.Payment?.PaymentMethod}");
     Console.WriteLine($"  Transaction: {order.Payment?.TransactionId}");
 }
