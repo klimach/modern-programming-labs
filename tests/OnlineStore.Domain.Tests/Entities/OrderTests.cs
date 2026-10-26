@@ -7,7 +7,12 @@ namespace OnlineStore.Domain.Tests.Entities;
 
 public class OrderTests
 {
-    private readonly Customer _customer = new() { Name = "Oleksandr Klimach", Email = "oleksandr@example.com" };
+    private readonly Customer _customer = new()
+    {
+        Name = "Oleksandr Klimach",
+        Email = "oleksandr@example.com",
+        Address = new Address("Poltava", "Shevchenka", "12", "36000")
+    };
     private readonly Product _laptop = new("Laptop", 45000m);
     private readonly Product _mouse = new("Mouse", 800m);
 
@@ -216,10 +221,91 @@ public class OrderTests
         Assert.Throws<DomainException>(order.Cancel);
     }
 
+    [Fact]
+    public void Ship_WhenPaid_MarksOrderAsShipped()
+    {
+        var order = CreatePaidOrder();
+
+        order.Ship();
+
+        Assert.Equal(OrderStatus.Shipped, order.Status);
+    }
+
+    [Fact]
+    public void Ship_WhenNotPaid_ThrowsDomainException()
+    {
+        var order = CreateOrderWithMouse();
+
+        Assert.Throws<DomainException>(order.Ship);
+        Assert.Equal(OrderStatus.Created, order.Status);
+    }
+
+    [Fact]
+    public void Ship_WhenCustomerHasNoAddress_ThrowsDomainException()
+    {
+        var customer = new Customer { Name = "Oleksandr Klimach", Email = "oleksandr@example.com" };
+        var order = new Order(customer);
+        order.AddItem(_mouse, 1);
+        order.Pay(CreateReceipt(order.TotalAmount));
+
+        Assert.Throws<DomainException>(order.Ship);
+        Assert.Equal(OrderStatus.Paid, order.Status);
+    }
+
+    [Fact]
+    public void Deliver_WhenShipped_MarksOrderAsDelivered()
+    {
+        var order = CreatePaidOrder();
+        order.Ship();
+
+        order.Deliver();
+
+        Assert.Equal(OrderStatus.Delivered, order.Status);
+    }
+
+    [Fact]
+    public void Deliver_WhenNotShipped_ThrowsDomainException()
+    {
+        var order = CreatePaidOrder();
+
+        Assert.Throws<DomainException>(order.Deliver);
+        Assert.Equal(OrderStatus.Paid, order.Status);
+    }
+
+    [Fact]
+    public void Pay_WhenShipped_ThrowsDomainException()
+    {
+        var order = CreatePaidOrder();
+        order.Ship();
+
+        Assert.Throws<DomainException>(() => order.Pay(CreateReceipt(order.TotalAmount)));
+    }
+
+    [Fact]
+    public void Cancel_WhenShippedOrDelivered_ThrowsDomainException()
+    {
+        var shipped = CreatePaidOrder();
+        shipped.Ship();
+        var delivered = CreatePaidOrder();
+        delivered.Ship();
+        delivered.Deliver();
+
+        Assert.Throws<DomainException>(shipped.Cancel);
+        Assert.Throws<DomainException>(delivered.Cancel);
+    }
+
     private Order CreateOrderWithMouse()
     {
         var order = new Order(_customer);
         order.AddItem(_mouse, 1);
+
+        return order;
+    }
+
+    private Order CreatePaidOrder()
+    {
+        var order = CreateOrderWithMouse();
+        order.Pay(CreateReceipt(order.TotalAmount));
 
         return order;
     }
