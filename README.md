@@ -8,7 +8,7 @@
 
 ## Опис предметної області
 
-Проєкт моделює інтернет-магазин електроніки та аксесуарів «TechNest». Покупець (`Customer`) обирає товари (`Product`) з каталогу, кожен з яких має назву та ціну, і формує замовлення (`Order`), що складається з позицій (`OrderItem`) з кількістю та зафіксованою на момент додавання ціною. Поки замовлення має статус «Створено», у ньому можна додавати й видаляти товари та змінювати їх кількість. Замовлення оплачується карткою або банківським переказом і переходить у статус «Оплачено», а неоплачене замовлення можна скасувати. Оплачене чи скасоване замовлення не можна змінювати або оплачувати повторно.
+Проєкт моделює інтернет-магазин електроніки та аксесуарів «TechNest». Покупець (`Customer`) обирає товари (`Product`) з каталогу, кожен з яких має назву та ціну, і формує замовлення (`Order`), що складається з позицій (`OrderItem`) з кількістю та зафіксованою на момент додавання ціною. Поки замовлення має статус «Створено», у ньому можна додавати й видаляти товари та змінювати їх кількість. Замовлення оплачується карткою або банківським переказом і переходить у статус «Оплачено», після чого відправляється на адресу доставки покупця та отримується ним. Неоплачене замовлення можна скасувати. Оплачене чи скасоване замовлення не можна змінювати або оплачувати повторно.
 
 ## Структура проєкту
 
@@ -41,7 +41,7 @@ dotnet test
 |---|---|---|
 | `Entity` | `Id` | рівність за `Id` |
 | `Product` | `Name`, `Price` | `ChangePrice()` |
-| `Customer` | `FullName`, `Email` | — |
+| `Customer` | `Name`, `Email` | — |
 | `Order` | `Customer`, `Status`, `Items`, `TotalAmount`, `Payment` | `AddItem()`, `RemoveItem()`, `ChangeItemQuantity()`, `Pay()`, `Cancel()` |
 | `OrderItem` | `Product`, `Quantity`, `UnitPrice`, `Total` | змінюється лише через `Order` |
 | `PaymentReceipt` | `TransactionId`, `PaymentMethod`, `Amount` | — |
@@ -70,3 +70,40 @@ dotnet test
 - список `Items` не можна змінювати напряму.
 
 Порушення правил призводить до `DomainException`; кожне правило покрито тестами в `OnlineStore.Domain.Tests`.
+
+## Lab 3 — Сучасне моделювання даних у C#
+
+### Class vs record
+
+| Тип | Вид | Чому |
+|---|---|---|
+| `Product`, `Customer`, `Order` | `class` (entity) | мають identity (`Id`) та змінюють стан |
+| `Address` | `record` (value object) | `City`, `Street`, `Building`, `PostalCode`; рівність за значеннями, зміна лише через `with` |
+| `PaymentReceipt` | `record` (value object) | незмінний результат оплати |
+
+Record-и валідують значення в ініціалізаторах властивостей і кидають `DomainException` (поштовий індекс — 5 цифр).
+
+### Можливості C#
+
+| Можливість | Де використано |
+|---|---|
+| `required` + `init` | `Customer.Name`, `Customer.Email` — обов'язкові під час створення, валідація в `init`-аксесорі (ключове слово `field`) |
+| Nullable reference types | `Customer.Address` (`Address?`), `Customer.PhoneNumber` (`string?`), `Order.Payment` (`PaymentReceipt?`); `Order.Ship()` перевіряє `Customer.Address is null` |
+| `enum` | `OrderStatus`: `Created`, `Paid`, `Shipped`, `Delivered`, `Cancelled`; `OrderCategory`: `Small`, `Medium`, `Large` |
+| Switch expression | `Order.GetStatusDescription()`, `Order.GetOrderCategory()`, `Order.Cancel()`, `Order.EnsureCanBePaid()` |
+| Relational pattern | `GetOrderCategory()`: `< 500` → Small, `< 5000` → Medium, інакше Large |
+| Property pattern | `Order.HasFreeDelivery`: `this is { Status: OrderStatus.Paid, TotalAmount: >= 2000 }`; `Address.PostalCode is { Length: 5 }` |
+| Logical pattern | `EnsureCanBePaid()`: `Paid or Shipped or Delivered` |
+| List pattern | `Customer.PhoneNumber`: `['+', .. var digits]` |
+
+### Життєвий цикл замовлення
+
+```
+Created ──Pay()──▶ Paid ──Ship()──▶ Shipped ──Deliver()──▶ Delivered
+   │
+   └──Cancel()──▶ Cancelled
+```
+
+- відправити можна лише оплачене замовлення, якщо в покупця вказана адреса;
+- доставити можна лише відправлене замовлення;
+- скасувати можна лише замовлення зі статусом `Created`.
