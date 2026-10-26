@@ -1,6 +1,7 @@
 using System.Net.Mail;
 using OnlineStore.Domain.Common;
 using OnlineStore.Domain.Exceptions;
+using OnlineStore.Domain.ValueObjects;
 
 namespace OnlineStore.Domain.Entities;
 
@@ -21,4 +22,20 @@ public sealed class Customer : Entity
             ? value
             : throw new DomainException("Customer email is invalid.");
     }
+
+    public Address? Address { get; init; }
+
+    public string? PhoneNumber
+    {
+        get;
+        init => field = value is null || IsValidPhoneNumber(value)
+            ? value
+            : throw new DomainException("Customer phone number is invalid.");
+    }
+
+    // International format: "+" followed by 10-15 digits, e.g. +380501234567.
+    private static bool IsValidPhoneNumber(string phoneNumber) =>
+        phoneNumber is ['+', .. var digits]
+        && digits.Length is >= 10 and <= 15
+        && digits.All(char.IsAsciiDigit);
 }
