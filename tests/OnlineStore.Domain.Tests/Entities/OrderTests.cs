@@ -294,6 +294,61 @@ public class OrderTests
         Assert.Throws<DomainException>(delivered.Cancel);
     }
 
+    [Theory]
+    [InlineData(OrderStatus.Created, "Order is created and awaiting payment")]
+    [InlineData(OrderStatus.Paid, "Order is paid and being prepared for shipment")]
+    [InlineData(OrderStatus.Shipped, "Order is shipped and on its way to the customer")]
+    [InlineData(OrderStatus.Delivered, "Order is delivered to the customer")]
+    [InlineData(OrderStatus.Cancelled, "Order is cancelled")]
+    public void GetStatusDescription_ReturnsDescriptionForStatus(OrderStatus status, string expected)
+    {
+        var order = CreateOrderWithStatus(status);
+
+        Assert.Equal(status, order.Status);
+        Assert.Equal(expected, order.GetStatusDescription());
+    }
+
+    [Theory]
+    [InlineData(0, OrderCategory.Small)]
+    [InlineData(499, OrderCategory.Small)]
+    [InlineData(500, OrderCategory.Medium)]
+    [InlineData(4999, OrderCategory.Medium)]
+    [InlineData(5000, OrderCategory.Large)]
+    [InlineData(45000, OrderCategory.Large)]
+    public void GetOrderCategory_ReturnsCategoryByTotal(decimal total, OrderCategory expected)
+    {
+        var order = new Order(_customer);
+
+        if (total > 0)
+        {
+            order.AddItem(new Product("Item", total), 1);
+        }
+
+        Assert.Equal(expected, order.GetOrderCategory());
+    }
+
+    [Theory]
+    [InlineData(2000, true)]
+    [InlineData(45000, true)]
+    [InlineData(1999.99, false)]
+    public void HasFreeDelivery_WhenPaid_DependsOnTotal(decimal total, bool expected)
+    {
+        var order = new Order(_customer);
+        order.AddItem(new Product("Item", total), 1);
+        order.Pay(CreateReceipt(order.TotalAmount));
+
+        Assert.Equal(expected, order.HasFreeDelivery);
+    }
+
+    [Fact]
+    public void HasFreeDelivery_WhenNotPaid_ReturnsFalse()
+    {
+        var order = new Order(_customer);
+        order.AddItem(_laptop, 1);
+
+        Assert.False(order.HasFreeDelivery);
+    }
+
     private Order CreateOrderWithMouse()
     {
         var order = new Order(_customer);
@@ -306,6 +361,34 @@ public class OrderTests
     {
         var order = CreateOrderWithMouse();
         order.Pay(CreateReceipt(order.TotalAmount));
+
+        return order;
+    }
+
+    private Order CreateOrderWithStatus(OrderStatus status)
+    {
+        var order = CreateOrderWithMouse();
+
+        if (status == OrderStatus.Cancelled)
+        {
+            order.Cancel();
+            return order;
+        }
+
+        if (status >= OrderStatus.Paid)
+        {
+            order.Pay(CreateReceipt(order.TotalAmount));
+        }
+
+        if (status >= OrderStatus.Shipped)
+        {
+            order.Ship();
+        }
+
+        if (status >= OrderStatus.Delivered)
+        {
+            order.Deliver();
+        }
 
         return order;
     }

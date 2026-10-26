@@ -7,6 +7,8 @@ namespace OnlineStore.Domain.Entities;
 
 public sealed class Order : Entity
 {
+    private const decimal FreeDeliveryThreshold = 2000m;
+
     private readonly List<OrderItem> _items = [];
 
     public Customer Customer { get; }
@@ -14,6 +16,7 @@ public sealed class Order : Entity
     public PaymentReceipt? Payment { get; private set; }
     public IReadOnlyCollection<OrderItem> Items => _items.AsReadOnly();
     public decimal TotalAmount => _items.Sum(item => item.Total);
+    public bool HasFreeDelivery => this is { Status: OrderStatus.Paid, TotalAmount: >= FreeDeliveryThreshold };
 
     public Order(Customer customer)
     {
@@ -116,6 +119,23 @@ public sealed class Order : Entity
             _ => throw new DomainException($"{Status} order cannot be cancelled.")
         };
     }
+
+    public string GetStatusDescription() => Status switch
+    {
+        OrderStatus.Created => "Order is created and awaiting payment",
+        OrderStatus.Paid => "Order is paid and being prepared for shipment",
+        OrderStatus.Shipped => "Order is shipped and on its way to the customer",
+        OrderStatus.Delivered => "Order is delivered to the customer",
+        OrderStatus.Cancelled => "Order is cancelled",
+        _ => "Unknown status"
+    };
+
+    public OrderCategory GetOrderCategory() => TotalAmount switch
+    {
+        < 500m => OrderCategory.Small,
+        < 5000m => OrderCategory.Medium,
+        _ => OrderCategory.Large
+    };
 
     private OrderItem GetItem(Guid productId) =>
         _items.FirstOrDefault(item => item.Product.Id == productId)
