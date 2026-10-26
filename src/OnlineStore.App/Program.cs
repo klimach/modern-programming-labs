@@ -25,7 +25,7 @@ Console.Write(output);
 
 var paymentService = new OrderPaymentService();
 
-var customer = new Customer("Oleksandr Klimach", "oleksandr@example.com");
+var customer = new Customer { Name = "Oleksandr Klimach", Email = "oleksandr@example.com" };
 
 var laptop = new Product("Laptop", 45000m);
 var mouse = new Product("Mouse", 800m);
@@ -74,7 +74,7 @@ TryRun("Use invalid card number", () => new CardPayment("4111111111111112"));
 static void PrintOrder(Order order)
 {
     Console.WriteLine();
-    Console.WriteLine($"Order for {order.Customer.FullName}: {order.Status}");
+    Console.WriteLine($"Order for {order.Customer.Name}: {order.Status}");
 
     foreach (var item in order.Items)
     {

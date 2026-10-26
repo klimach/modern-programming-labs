@@ -7,7 +7,7 @@ namespace OnlineStore.Domain.Tests.Entities;
 
 public class OrderTests
 {
-    private readonly Customer _customer = new("Oleksandr Klimach", "oleksandr@example.com");
+    private readonly Customer _customer = new() { Name = "Oleksandr Klimach", Email = "oleksandr@example.com" };
     private readonly Product _laptop = new("Laptop", 45000m);
     private readonly Product _mouse = new("Mouse", 800m);
 
