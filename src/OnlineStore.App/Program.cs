@@ -1,12 +1,15 @@
 using System.Text;
 using OnlineStore.App;
+using OnlineStore.App.Data;
 using OnlineStore.App.Utils;
 using OnlineStore.Application.Orders;
 using OnlineStore.Application.Payments;
+using OnlineStore.Application.Statistics;
 using OnlineStore.Domain.Entities;
 using OnlineStore.Domain.Exceptions;
 using OnlineStore.Domain.ValueObjects;
 using OnlineStore.Infrastructure.Payments;
+using OnlineStore.Infrastructure.Repositories;
 
 const string CardNumber = "4111111111111111";
 const string Iban = "UA213223130000026007233566001";
@@ -94,6 +97,68 @@ TryRun("Deliver order that is not shipped", smallOrder.Deliver);
 TryRun("Cancel delivered order", transferOrder.Cancel);
 TryRun("Create address with invalid postal code", () => new Address("Poltava", "Shevchenka", "12", "3600"));
 TryRun("Create customer with invalid phone", () => new Customer { Name = "Test", Email = "test@example.com", PhoneNumber = "0501234567" });
+
+var customerRepository = new InMemoryRepository<Customer>();
+var productRepository = new InMemoryRepository<Product>();
+var orderRepository = new InMemoryRepository<Order>();
+
+SampleData.Seed(customerRepository, productRepository, orderRepository);
+
+var statistics = new OrderStatisticsService(orderRepository);
+
+Console.WriteLine();
+Console.WriteLine(
+    $"Sample data: {customerRepository.GetAll().Count} customers, " +
+    $"{productRepository.GetAll().Count} products, {orderRepository.GetAll().Count} orders");
+
+var largeOrders = statistics.GetOrdersWithTotalAbove(1000m);
+Console.WriteLine();
+Console.WriteLine($"Orders with total > 1000 UAH: {largeOrders.Count}");
+
+Console.WriteLine();
+Console.WriteLine("Top 5 most expensive orders:");
+foreach (var order in statistics.GetMostExpensiveOrders(5))
+{
+    Console.WriteLine($"  {order.TotalAmount,10:0.00} UAH  {order.Customer.Name} ({order.Status})");
+}
+
+Console.WriteLine();
+Console.WriteLine($"Total sales: {statistics.GetTotalSales():0.00} UAH");
+Console.WriteLine($"Average order value: {statistics.GetAverageOrderValue():0.00} UAH");
+
+Console.WriteLine();
+Console.WriteLine("Orders per customer:");
+foreach (var (buyer, orderCount) in statistics.GetOrderCountByCustomer())
+{
+    Console.WriteLine($"  {buyer.Name}: {orderCount}");
+}
+
+Console.WriteLine();
+Console.WriteLine($"Ordered products: {string.Join(", ", statistics.GetOrderedProducts().Select(product => product.Name))}");
+
+Console.WriteLine();
+Console.WriteLine("Top 3 products by sold quantity:");
+foreach (var (product, quantitySold) in statistics.GetBestSellingProducts(3))
+{
+    Console.WriteLine($"  {product.Name}: {quantitySold}");
+}
+
+Console.WriteLine();
+Console.WriteLine("Customers who spent more than 5000 UAH:");
+foreach (var (buyer, totalSpent) in statistics.GetCustomersWithSpendingAbove(5000m))
+{
+    Console.WriteLine($"  {buyer.Name}: {totalSpent:0.00} UAH");
+}
+
+Console.WriteLine();
+Console.WriteLine($"Any order > 10000 UAH: {(statistics.HasOrderWithTotalAbove(10000m) ? "yes" : "no")}");
+
+Console.WriteLine();
+Console.WriteLine("Spending by customer id:");
+foreach (var (customerId, totalSpent) in statistics.GetSpendingByCustomerId())
+{
+    Console.WriteLine($"  {customerId} ({customerRepository.GetById(customerId)?.Name}): {totalSpent:0.00} UAH");
+}
 
 static void PrintCustomer(Customer customer)
 {
