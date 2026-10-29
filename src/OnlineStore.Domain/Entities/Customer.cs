@@ -1,27 +1,41 @@
 using System.Net.Mail;
 using OnlineStore.Domain.Common;
 using OnlineStore.Domain.Exceptions;
+using OnlineStore.Domain.ValueObjects;
 
 namespace OnlineStore.Domain.Entities;
 
 public sealed class Customer : Entity
 {
-    public string FullName { get; }
-    public string Email { get; }
-
-    public Customer(string fullName, string email)
+    public required string Name
     {
-        if (string.IsNullOrWhiteSpace(fullName))
-        {
-            throw new DomainException("Customer name cannot be empty.");
-        }
-
-        if (!MailAddress.TryCreate(email, out _))
-        {
-            throw new DomainException("Customer email is invalid.");
-        }
-
-        FullName = fullName;
-        Email = email;
+        get;
+        init => field = !string.IsNullOrWhiteSpace(value)
+            ? value
+            : throw new DomainException("Customer name cannot be empty.");
     }
+
+    public required string Email
+    {
+        get;
+        init => field = MailAddress.TryCreate(value, out _)
+            ? value
+            : throw new DomainException("Customer email is invalid.");
+    }
+
+    public Address? Address { get; init; }
+
+    public string? PhoneNumber
+    {
+        get;
+        init => field = value is null || IsValidPhoneNumber(value)
+            ? value
+            : throw new DomainException("Customer phone number is invalid.");
+    }
+
+    // International format: "+" followed by 10-15 digits, e.g. +380501234567.
+    private static bool IsValidPhoneNumber(string phoneNumber) =>
+        phoneNumber is ['+', .. var digits]
+        && digits.Length is >= 10 and <= 15
+        && digits.All(char.IsAsciiDigit);
 }

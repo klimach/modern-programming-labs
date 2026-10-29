@@ -7,7 +7,12 @@ namespace OnlineStore.Domain.Tests.Entities;
 
 public class OrderTests
 {
-    private readonly Customer _customer = new("Oleksandr Klimach", "oleksandr@example.com");
+    private readonly Customer _customer = new()
+    {
+        Name = "Oleksandr Klimach",
+        Email = "oleksandr@example.com",
+        Address = new Address("Poltava", "Shevchenka", "12", "36000")
+    };
     private readonly Product _laptop = new("Laptop", 45000m);
     private readonly Product _mouse = new("Mouse", 800m);
 
@@ -216,10 +221,174 @@ public class OrderTests
         Assert.Throws<DomainException>(order.Cancel);
     }
 
+    [Fact]
+    public void Ship_WhenPaid_MarksOrderAsShipped()
+    {
+        var order = CreatePaidOrder();
+
+        order.Ship();
+
+        Assert.Equal(OrderStatus.Shipped, order.Status);
+    }
+
+    [Fact]
+    public void Ship_WhenNotPaid_ThrowsDomainException()
+    {
+        var order = CreateOrderWithMouse();
+
+        Assert.Throws<DomainException>(order.Ship);
+        Assert.Equal(OrderStatus.Created, order.Status);
+    }
+
+    [Fact]
+    public void Ship_WhenCustomerHasNoAddress_ThrowsDomainException()
+    {
+        var customer = new Customer { Name = "Oleksandr Klimach", Email = "oleksandr@example.com" };
+        var order = new Order(customer);
+        order.AddItem(_mouse, 1);
+        order.Pay(CreateReceipt(order.TotalAmount));
+
+        Assert.Throws<DomainException>(order.Ship);
+        Assert.Equal(OrderStatus.Paid, order.Status);
+    }
+
+    [Fact]
+    public void Deliver_WhenShipped_MarksOrderAsDelivered()
+    {
+        var order = CreatePaidOrder();
+        order.Ship();
+
+        order.Deliver();
+
+        Assert.Equal(OrderStatus.Delivered, order.Status);
+    }
+
+    [Fact]
+    public void Deliver_WhenNotShipped_ThrowsDomainException()
+    {
+        var order = CreatePaidOrder();
+
+        Assert.Throws<DomainException>(order.Deliver);
+        Assert.Equal(OrderStatus.Paid, order.Status);
+    }
+
+    [Fact]
+    public void Pay_WhenShipped_ThrowsDomainException()
+    {
+        var order = CreatePaidOrder();
+        order.Ship();
+
+        Assert.Throws<DomainException>(() => order.Pay(CreateReceipt(order.TotalAmount)));
+    }
+
+    [Fact]
+    public void Cancel_WhenShippedOrDelivered_ThrowsDomainException()
+    {
+        var shipped = CreatePaidOrder();
+        shipped.Ship();
+        var delivered = CreatePaidOrder();
+        delivered.Ship();
+        delivered.Deliver();
+
+        Assert.Throws<DomainException>(shipped.Cancel);
+        Assert.Throws<DomainException>(delivered.Cancel);
+    }
+
+    [Theory]
+    [InlineData(OrderStatus.Created, "Order is created and awaiting payment")]
+    [InlineData(OrderStatus.Paid, "Order is paid and being prepared for shipment")]
+    [InlineData(OrderStatus.Shipped, "Order is shipped and on its way to the customer")]
+    [InlineData(OrderStatus.Delivered, "Order is delivered to the customer")]
+    [InlineData(OrderStatus.Cancelled, "Order is cancelled")]
+    public void GetStatusDescription_ReturnsDescriptionForStatus(OrderStatus status, string expected)
+    {
+        var order = CreateOrderWithStatus(status);
+
+        Assert.Equal(status, order.Status);
+        Assert.Equal(expected, order.GetStatusDescription());
+    }
+
+    [Theory]
+    [InlineData(0, OrderCategory.Small)]
+    [InlineData(499, OrderCategory.Small)]
+    [InlineData(500, OrderCategory.Medium)]
+    [InlineData(4999, OrderCategory.Medium)]
+    [InlineData(5000, OrderCategory.Large)]
+    [InlineData(45000, OrderCategory.Large)]
+    public void GetOrderCategory_ReturnsCategoryByTotal(decimal total, OrderCategory expected)
+    {
+        var order = new Order(_customer);
+
+        if (total > 0)
+        {
+            order.AddItem(new Product("Item", total), 1);
+        }
+
+        Assert.Equal(expected, order.GetOrderCategory());
+    }
+
+    [Theory]
+    [InlineData(2000, true)]
+    [InlineData(45000, true)]
+    [InlineData(1999.99, false)]
+    public void HasFreeDelivery_WhenPaid_DependsOnTotal(decimal total, bool expected)
+    {
+        var order = new Order(_customer);
+        order.AddItem(new Product("Item", total), 1);
+        order.Pay(CreateReceipt(order.TotalAmount));
+
+        Assert.Equal(expected, order.HasFreeDelivery);
+    }
+
+    [Fact]
+    public void HasFreeDelivery_WhenNotPaid_ReturnsFalse()
+    {
+        var order = new Order(_customer);
+        order.AddItem(_laptop, 1);
+
+        Assert.False(order.HasFreeDelivery);
+    }
+
     private Order CreateOrderWithMouse()
     {
         var order = new Order(_customer);
         order.AddItem(_mouse, 1);
+
+        return order;
+    }
+
+    private Order CreatePaidOrder()
+    {
+        var order = CreateOrderWithMouse();
+        order.Pay(CreateReceipt(order.TotalAmount));
+
+        return order;
+    }
+
+    private Order CreateOrderWithStatus(OrderStatus status)
+    {
+        var order = CreateOrderWithMouse();
+
+        if (status == OrderStatus.Cancelled)
+        {
+            order.Cancel();
+            return order;
+        }
+
+        if (status >= OrderStatus.Paid)
+        {
+            order.Pay(CreateReceipt(order.TotalAmount));
+        }
+
+        if (status >= OrderStatus.Shipped)
+        {
+            order.Ship();
+        }
+
+        if (status >= OrderStatus.Delivered)
+        {
+            order.Deliver();
+        }
 
         return order;
     }
