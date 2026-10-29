@@ -16,11 +16,13 @@
 modern-programming-labs/
 ├── src/
 │   ├── OnlineStore.Domain/           # Сутності, правила та доменні винятки; не залежить від інших проєктів
-│   ├── OnlineStore.Application/      # Сценарії використання та абстракції (IPaymentMethod) → Domain
-│   ├── OnlineStore.Infrastructure/   # Реалізації абстракцій (CardPayment, BankTransferPayment) → Application
-│   └── OnlineStore.App/              # Console Application, composition root → усі проєкти
+│   ├── OnlineStore.Application/      # Сценарії використання, статистика та абстракції (IPaymentMethod, IRepository<T>) → Domain
+│   ├── OnlineStore.Infrastructure/   # Реалізації абстракцій (CardPayment, BankTransferPayment, InMemoryRepository<T>) → Application
+│   └── OnlineStore.App/              # Console Application, composition root, тестові дані → усі проєкти
 ├── tests/
-│   └── OnlineStore.Domain.Tests/     # Unit-тести доменних правил (xUnit) → Domain
+│   ├── OnlineStore.Domain.Tests/          # Unit-тести доменних правил (xUnit) → Domain
+│   ├── OnlineStore.Application.Tests/     # Тести LINQ-статистики → Infrastructure
+│   └── OnlineStore.Infrastructure.Tests/  # Тести репозиторію → Infrastructure
 ├── README.md
 ├── .gitignore
 └── ModernProgramming.slnx
@@ -107,3 +109,39 @@ Created ──Pay()──▶ Paid ──Ship()──▶ Shipped ──Deliver()�
 - відправити можна лише оплачене замовлення, якщо в покупця вказана адреса;
 - доставити можна лише відправлене замовлення;
 - скасувати можна лише замовлення зі статусом `Created`.
+
+## Lab 4 — Collections, Generics та LINQ
+
+### Generic repository
+
+`IRepository<T>` (Application) та `InMemoryRepository<T>` (Infrastructure) з constraint `where T : Entity`, що дає доступ до `Id` та рівності сутностей:
+
+| Метод | Опис |
+|---|---|
+| `Add(T)` | додає сутність; повторне додавання тієї ж сутності — `InvalidOperationException` |
+| `Remove(T)` | видаляє сутність, повертає `false`, якщо її немає |
+| `GetById(Guid)` | повертає сутність або `null` |
+| `GetAll()` | `IReadOnlyCollection<T>` — колекцію не можна змінити ззовні |
+
+### Тестові дані
+
+`SampleData.Seed()` у `OnlineStore.App/Data` заповнює репозиторії: 6 покупців, 10 товарів, 20 замовлень у всіх статусах (`Created`, `Paid`, `Shipped`, `Delivered`, `Cancelled`).
+
+### LINQ-запити (`OrderStatisticsService`)
+
+Продажі (сума, середнє, витрати покупців, топ товарів) рахуються лише за оплаченими замовленнями (`Payment is not null`); створені та скасовані замовлення виручки не дають.
+
+| Завдання | Метод | LINQ |
+|---|---|---|
+| Orders з Total > 1000 | `GetOrdersWithTotalAbove(1000)` | `Where` |
+| Топ-5 найдорожчих orders | `GetMostExpensiveOrders(5)` | `OrderByDescending`, `Take` |
+| Загальна сума продажів | `GetTotalSales()` | `Where`, `Sum` |
+| Середня вартість order | `GetAverageOrderValue()` | `Select`, `DefaultIfEmpty`, `Average` |
+| Кількість orders кожного customer | `GetOrderCountByCustomer()` | `GroupBy`, `Select`, `Count`, `ThenBy` |
+| Усі products з усіх orders | `GetOrderedProducts()` | `SelectMany`, `Select`, `Distinct`, `OrderBy` |
+| Топ-3 products за quantity | `GetBestSellingProducts(3)` | `SelectMany`, `GroupBy`, `Sum`, `Take` |
+| Customers, що витратили > 5000 | `GetCustomersWithSpendingAbove(5000)` | `GroupBy`, `Sum`, `Where` |
+| Чи існує order > 10000 | `HasOrderWithTotalAbove(10000)` | `Any` |
+| `Dictionary<CustomerId, decimal>` | `GetSpendingByCustomerId()` | `GroupBy`, `ToDictionary` |
+
+Результати групувань повертаються як records: `CustomerOrderCount`, `ProductSales`, `CustomerSpending`. Методи матеріалізують результат через `ToList()`, тому запит виконується один раз під час виклику, а не при кожному переборі (deferred execution).
